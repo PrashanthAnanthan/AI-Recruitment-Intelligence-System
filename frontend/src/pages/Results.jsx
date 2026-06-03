@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Trophy, CheckCircle, XCircle, Download, FileSpreadsheet,
   FileText, ChevronDown, ChevronUp, Loader2, RefreshCw,
-  User, Briefcase, GraduationCap, Star, AlertTriangle
+  User, Briefcase, GraduationCap, Star, AlertTriangle, Mail
 } from 'lucide-react'
 import { screeningApi } from '../utils/api'
 import toast from 'react-hot-toast'
@@ -167,6 +167,22 @@ function CandidateCard({ candidate, rank, isOpen, onToggle }) {
                 </div>
               )}
 
+              {/* Contact candidate */}
+              {candidate.email && (
+                <div className="mt-5 pt-4 border-t border-border flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted font-body mb-0.5">Candidate Email</p>
+                    <p className="text-sm text-light font-mono">{candidate.email}</p>
+                  </div>
+                  <a
+                    href={`mailto:${candidate.email}?subject=${encodeURIComponent('Interview Invitation — ' + (name || 'Candidate'))}&body=${encodeURIComponent('Hi ' + (name || 'there') + ',\n\nWe reviewed your application and were impressed by your background. We would like to invite you to interview for the role.\n\nPlease let us know your availability.\n\nBest regards,\nRecruitment Team')}`}
+                    className="btn-primary flex items-center gap-2 text-sm no-underline"
+                  >
+                    <Mail size={14} /> Email Candidate
+                  </a>
+                </div>
+              )}
+
               {/* Flags */}
               <div className="flex gap-2 mt-4">
                 {candidate.isDuplicate && <span className="tag-amber"><AlertTriangle size={11} /> Possible Duplicate</span>}
@@ -301,7 +317,11 @@ export default function Results() {
       {/* Candidate cards */}
       {filtered.length === 0 ? (
         <div className="card py-16 text-center text-muted font-body">
-          {data?.status === 'processing' ? 'Results loading…' : 'No candidates found'}
+          {(data?.status === 'processing' || data?.status === 'pending')
+            ? 'AI is analyzing CVs — results will appear here shortly…'
+            : data?.status === 'failed'
+            ? 'Screening failed. Please check the source and try again.'
+            : 'No candidates found'}
         </div>
       ) : (
         <div className="space-y-3">
