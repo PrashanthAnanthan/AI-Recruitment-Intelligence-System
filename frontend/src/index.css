@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  
+  body {
+    @apply bg-ink text-light font-body;
+    background-image: 
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(108,99,255,0.08), transparent),
+      linear-gradient(rgba(108,99,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,0.03) 1px, transparent 1px);
+    background-size: 100% 100%, 40px 40px, 40px 40px;
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #111118; }
+  ::-webkit-scrollbar-thumb { background: #2A2A38; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #6C63FF; }
+}
+
+@layer components {
+  .card {
+    @apply bg-panel border border-border rounded-2xl shadow-card;
+  }
+
+  .btn-primary {
+    @apply bg-accent hover:bg-accent-glow text-white font-display font-semibold 
+           px-6 py-3 rounded-xl transition-all duration-200 
+           hover:shadow-glow hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-ghost {
+    @apply border border-border hover:border-accent text-muted hover:text-light
+           font-body px-6 py-3 rounded-xl transition-all duration-200;
+  }
+
+  .input-field {
+    @apply bg-surface border border-border rounded-xl px-4 py-3 text-light
+           placeholder:text-muted focus:outline-none focus:border-accent 
+           transition-colors duration-200 font-body w-full;
+  }
+
+  .score-bar {
+    @apply h-2 rounded-full bg-border overflow-hidden;
+  }
+
+  .score-fill {
+    @apply h-full rounded-full transition-all duration-700 ease-out;
+  }
+
+  .tag {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono;
+  }
+
+  .tag-green { @apply tag bg-emerald/10 text-emerald border border-emerald/20; }
+  .tag-red   { @apply tag bg-crimson/10 text-crimson border border-crimson/20; }
+  .tag-purple { @apply tag bg-accent/10 text-accent-glow border border-accent/20; }
+  .tag-amber { @apply tag bg-amber/10 text-amber border border-amber/20; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out forwards;
+}
+
+.stagger-1 { animation-delay: 0.05s; opacity: 0; }
+.stagger-2 { animation-delay: 0.1s;  opacity: 0; }
+.stagger-3 { animation-delay: 0.15s; opacity: 0; }
+.stagger-4 { animation-delay: 0.2s;  opacity: 0; }

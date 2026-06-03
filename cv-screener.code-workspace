@@ -1,0 +1,79 @@
+{
+  "folders": [
+    { "path": ".", "name": "AI CV Screener (Root)" },
+    { "path": "frontend", "name": "Frontend (React)" },
+    { "path": "backend-node", "name": "Backend (Node/Express)" },
+    { "path": "backend-python", "name": "AI Engine (FastAPI)" }
+  ],
+  "settings": {
+    "editor.fontSize": 14,
+    "editor.tabSize": 2,
+    "python.defaultInterpreterPath": "${workspaceFolder:AI Engine (FastAPI)}/venv/bin/python",
+    "eslint.workingDirectories": ["frontend"],
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/venv": true,
+      "**/__pycache__": true,
+      "**/.git": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "bradlc.vscode-tailwindcss",
+      "mongodb.mongodb-vscode",
+      "humao.rest-client"
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "Node API",
+        "cwd": "${workspaceFolder:Backend (Node/Express)}",
+        "runtimeExecutable": "npx",
+        "runtimeArgs": ["nodemon", "server.js"],
+        "console": "integratedTerminal"
+      },
+      {
+        "type": "python",
+        "request": "launch",
+        "name": "FastAPI Engine",
+        "module": "uvicorn",
+        "args": ["main:app", "--reload", "--port", "8000"],
+        "cwd": "${workspaceFolder:AI Engine (FastAPI)}",
+        "console": "integratedTerminal"
+      }
+    ],
+    "compounds": [
+      {
+        "name": "Full Stack",
+        "configurations": ["Node API", "FastAPI Engine"]
+      }
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Start Frontend",
+        "type": "shell",
+        "command": "npm run dev",
+        "options": { "cwd": "${workspaceFolder:Frontend (React)}" },
+        "group": "build",
+        "presentation": { "panel": "new", "name": "Frontend" }
+      },
+      {
+        "label": "Install All",
+        "type": "shell",
+        "command": "cd frontend && npm install && cd ../backend-node && npm install && cd ../backend-python && python -m venv venv && venv/bin/pip install -r requirements.txt",
+        "presentation": { "panel": "new" }
+      }
+    ]
+  }
+}
