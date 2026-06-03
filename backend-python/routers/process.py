@@ -44,6 +44,15 @@ async def process_pipeline(req: ProcessRequest):
                     if text:
                         cv_items.append((text, fp.name))
 
+        elif req.cvSource.type == "folder":
+            folder = Path(req.cvSource.folderPath)
+            if folder.exists():
+                for f in folder.iterdir():
+                    if f.suffix.lower() in (".pdf", ".docx", ".doc"):
+                        text = extract_text(str(f))
+                        if text:
+                            cv_items.append((text, f.name))
+
         elif req.cvSource.type == "drive":
             for file_bytes, fname in files_from_drive(req.cvSource.link):
                 suffix = Path(fname).suffix
@@ -83,7 +92,7 @@ async def process_pipeline(req: ProcessRequest):
 
         # ── Analyze each CV (parallel batches of 10) ─────────────────────
         candidates: list[Candidate] = []
-        BATCH_SIZE = 10
+        BATCH_SIZE = 25
 
         for batch_start in range(0, total, BATCH_SIZE):
             batch = cv_items[batch_start: batch_start + BATCH_SIZE]

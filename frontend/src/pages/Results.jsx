@@ -254,7 +254,7 @@ export default function Results() {
       </div>
 
       {/* Processing banner */}
-      {data?.status === 'processing' && (
+      {(data?.status === 'processing' || data?.status === 'pending') && (
         <div className="card p-4 mb-6 flex items-center gap-3 border-accent/30 bg-accent/5">
           <Loader2 size={16} className="animate-spin text-accent" />
           <div>

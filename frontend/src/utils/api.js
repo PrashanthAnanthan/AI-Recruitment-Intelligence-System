@@ -35,6 +35,7 @@ export const uploadApi = {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: e => onProgress && onProgress(Math.round((e.loaded * 100) / e.total)),
   }),
+  fromFolder:  (folderPath) => api.post('/upload/folder', { folderPath }),
   fromDrive:   (link) => api.post('/upload/drive',  { link }),
   fromS3:      (data) => api.post('/upload/s3',      data),
 }

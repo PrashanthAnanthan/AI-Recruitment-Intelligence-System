@@ -58,7 +58,27 @@ router.post('/s3', asyncHandler(async (req, res) => {
     .filter(o => /\.(pdf|docx|doc)$/i.test(o.Key))
     .map(o => o.Key)
 
-  res.json({ bucket, prefix, region, keys: cvFiles, count: cvFiles.length })
+ res.json({ bucket, prefix, region, keys: cvFiles, count: cvFiles.length })
+}))
+
+// Local Folder Path — recruiter pastes a folder path, Python scans it
+router.post('/folder', asyncHandler(async (req, res) => {
+  const { folderPath } = req.body
+  if (!folderPath) return res.status(400).json({ message: 'No folder path provided' })
+
+  // Check the folder exists and count CVs (server must be on same machine)
+  if (!fs.existsSync(folderPath)) {
+    return res.status(400).json({ message: 'Folder not found on the server machine' })
+  }
+
+  const cvFiles = fs.readdirSync(folderPath)
+    .filter(name => /\.(pdf|docx|doc)$/i.test(name))
+
+  if (cvFiles.length === 0) {
+    return res.status(400).json({ message: 'No PDF/DOCX files found in that folder' })
+  }
+
+  res.json({ folderPath, count: cvFiles.length })
 }))
 
 module.exports = router

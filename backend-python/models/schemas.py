@@ -2,8 +2,9 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 class CVSource(BaseModel):
-    type: str  # local | drive | s3
+    type: str  # local | folder | drive | s3
     fileIds: Optional[List[str]] = []
+    folderPath: Optional[str] = None
     link: Optional[str] = None
     bucket: Optional[str] = None
     prefix: Optional[str] = ""

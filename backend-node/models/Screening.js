@@ -27,8 +27,9 @@ const ScreeningSchema = new mongoose.Schema({
   jobTitle:       { type: String, required: true },
   jobDescription: { type: String, required: true },
   cvSource:       {
-    type:    { type: String, enum: ['local', 'drive', 's3'] },
+    type:    { type: String, enum: ['local', 'folder', 'drive', 's3'] },
     fileIds: [String],
+    folderPath: String,
     link:    String,
   },
   status:       { type: String, enum: ['pending', 'processing', 'completed', 'failed'], default: 'pending' },

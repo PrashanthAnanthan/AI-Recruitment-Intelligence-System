@@ -12,6 +12,7 @@ import { useScreening } from '../context/ScreeningContext'
 
 const TABS = [
   { id: 'local',  label: 'Local Files',   icon: HardDrive },
+  { id: 'folder', label: 'Folder Path',   icon: FolderOpen },
   { id: 'drive',  label: 'Google Drive',  icon: Cloud },
   { id: 's3',     label: 'AWS S3',        icon: FolderOpen },
 ]
@@ -25,6 +26,7 @@ export default function NewScreening() {
   const [jobTitle, setJobTitle] = useState('')
   const [files, setFiles] = useState([])
   const [driveLink, setDriveLink] = useState('')
+    const [folderPath, setFolderPath] = useState('')
   const [s3Config, setS3Config] = useState({ bucket: '', prefix: '', region: 'us-east-1' })
   const [uploading, setUploading] = useState(false)
   const [uploadPct, setUploadPct] = useState(0)
@@ -61,6 +63,10 @@ export default function NewScreening() {
         files.forEach(f => fd.append('cvs', f))
         const r = await uploadApi.uploadCVs(fd, pct => setUploadPct(pct))
         cvSource = { type: 'local', fileIds: r.data.fileIds }
+      } else if (tab === 'folder') {
+        if (!folderPath) { toast.error('Please enter a folder path'); return }
+        const r = await uploadApi.fromFolder(folderPath)
+        cvSource = { type: 'folder', folderPath: r.data.folderPath }
       } else if (tab === 'drive') {
         if (!driveLink) { toast.error('Please enter a Google Drive link'); return }
         const r = await uploadApi.fromDrive(driveLink)
@@ -193,7 +199,22 @@ export default function NewScreening() {
                   )}
                 </div>
               )}
+               {/* Folder Path */}
+              {tab === 'folder' && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-accent/5 border border-accent/20 text-sm text-accent-glow font-body">
+                    Paste the full folder path. The system reads every PDF/DOCX inside automatically — no manual selection. (Works when the server runs on this machine.)
+                  </div>
+                  <input
+                    className="input-field"
+                    placeholder="C:\Users\User\Documents\G_CV"
+                    value={folderPath}
+                    onChange={e => setFolderPath(e.target.value)}
+                  />
+                </div>
+              )}
 
+              
               {/* Google Drive */}
               {tab === 'drive' && (
                 <div className="space-y-4">
@@ -258,7 +279,7 @@ export default function NewScreening() {
                 <div className="flex justify-between items-center py-3 border-b border-border">
                   <span className="text-muted text-sm font-body">CV Source</span>
                   <span className="tag-purple font-mono text-xs">
-                    {tab === 'local' ? `${files.length} local files` : tab === 'drive' ? 'Google Drive' : 'AWS S3'}
+                    {tab === 'local' ? `${files.length} local files` : tab === 'folder' ? 'Folder Path' : tab === 'drive' ? 'Google Drive' : 'AWS S3'}
                   </span>
                 </div>
               </div>
