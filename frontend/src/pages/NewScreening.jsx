@@ -12,6 +12,7 @@ import { useScreening } from '../context/ScreeningContext'
 
 const TABS = [
   { id: 'local',  label: 'Local Files',   icon: HardDrive },
+  { id: 'pick',   label: 'Select Folder', icon: FolderOpen },
   { id: 'folder', label: 'Folder Path',   icon: FolderOpen },
   { id: 'drive',  label: 'Google Drive',  icon: Cloud },
   { id: 's3',     label: 'AWS S3',        icon: FolderOpen },
@@ -26,7 +27,9 @@ export default function NewScreening() {
   const [jobTitle, setJobTitle] = useState('')
   const [files, setFiles] = useState([])
   const [driveLink, setDriveLink] = useState('')
-    const [folderPath, setFolderPath] = useState('')
+  const [folderPath, setFolderPath] = useState('')
+  const [pickedFiles, setPickedFiles] = useState([])
+  const [pickedFolderName, setPickedFolderName] = useState('')
   const [s3Config, setS3Config] = useState({ bucket: '', prefix: '', region: 'us-east-1' })
   const [uploading, setUploading] = useState(false)
   const [uploadPct, setUploadPct] = useState(0)
@@ -47,6 +50,32 @@ export default function NewScreening() {
 
   const removeFile = i => setFiles(f => f.filter((_, idx) => idx !== i))
 
+  const pickFolder = async () => {
+    if (!window.showDirectoryPicker) {
+      toast.error('Folder picking needs Chrome or Edge browser')
+      return
+    }
+    try {
+      const dirHandle = await window.showDirectoryPicker()
+      setPickedFolderName(dirHandle.name)
+      const collected = []
+      for await (const entry of dirHandle.values()) {
+        if (entry.kind === 'file' && /\.(pdf|docx|doc)$/i.test(entry.name)) {
+          const file = await entry.getFile()
+          collected.push(file)
+        }
+      }
+      if (collected.length === 0) {
+        toast.error('No PDF/DOCX files found in that folder')
+        return
+      }
+      setPickedFiles(collected)
+      toast.success(`${collected.length} CV(s) found in folder`)
+    } catch (e) {
+      if (e.name !== 'AbortError') toast.error('Could not read folder')
+    }
+  }
+
   const handleSubmit = async () => {
     if (!jd.trim() || jd.length < 50) { toast.error('Please enter a detailed job description'); return }
     if (!jobTitle.trim()) { toast.error('Please enter a job title'); return }
@@ -58,21 +87,27 @@ export default function NewScreening() {
       let cvSource = {}
 
       if (tab === 'local') {
-        if (files.length === 0) { toast.error('Please upload at least one CV'); return }
+        if (files.length === 0) { toast.error('Please upload at least one CV'); setUploading(false); return }
         const fd = new FormData()
         files.forEach(f => fd.append('cvs', f))
         const r = await uploadApi.uploadCVs(fd, pct => setUploadPct(pct))
         cvSource = { type: 'local', fileIds: r.data.fileIds }
+      } else if (tab === 'pick') {
+        if (pickedFiles.length === 0) { toast.error('Please select a folder first'); setUploading(false); return }
+        const fd = new FormData()
+        pickedFiles.forEach(f => fd.append('cvs', f))
+        const r = await uploadApi.uploadCVs(fd, pct => setUploadPct(pct))
+        cvSource = { type: 'local', fileIds: r.data.fileIds }
       } else if (tab === 'folder') {
-        if (!folderPath) { toast.error('Please enter a folder path'); return }
+        if (!folderPath) { toast.error('Please enter a folder path'); setUploading(false); return }
         const r = await uploadApi.fromFolder(folderPath)
         cvSource = { type: 'folder', folderPath: r.data.folderPath }
       } else if (tab === 'drive') {
-        if (!driveLink) { toast.error('Please enter a Google Drive link'); return }
+        if (!driveLink) { toast.error('Please enter a Google Drive link'); setUploading(false); return }
         const r = await uploadApi.fromDrive(driveLink)
         cvSource = { type: 'drive', ...r.data }
       } else {
-        if (!s3Config.bucket) { toast.error('Please enter an S3 bucket name'); return }
+        if (!s3Config.bucket) { toast.error('Please enter an S3 bucket name'); setUploading(false); return }
         const r = await uploadApi.fromS3(s3Config)
         cvSource = { type: 's3', ...r.data }
       }
@@ -153,7 +188,7 @@ export default function NewScreening() {
           <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
             <div className="card p-6 space-y-5">
               {/* Source Tabs */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {TABS.map(({ id, label, icon: Icon }) => (
                   <button
                     key={id}
@@ -199,11 +234,31 @@ export default function NewScreening() {
                   )}
                 </div>
               )}
-               {/* Folder Path */}
+
+              {/* Select Folder (browser picker — works online) */}
+              {tab === 'pick' && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-emerald/5 border border-emerald/20 text-sm text-emerald font-body">
+                    Click below, choose a folder, and allow access. The system reads every PDF/DOCX inside automatically. Works online (Chrome/Edge).
+                  </div>
+                  <button onClick={pickFolder} className="btn-ghost w-full flex items-center justify-center gap-2">
+                    <FolderOpen size={16} /> Select Folder
+                  </button>
+                  {pickedFiles.length > 0 && (
+                    <p className="text-xs text-emerald font-mono">
+                      📁 {pickedFolderName} — {pickedFiles.length} CV(s) ready
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Folder Path */}
               {tab === 'folder' && (
                 <div className="space-y-4">
-                  <div className="p-4 rounded-xl bg-accent/5 border border-accent/20 text-sm text-accent-glow font-body">
-                    Paste the full folder path. The system reads every PDF/DOCX inside automatically — no manual selection. (Works when the server runs on this machine.)
+                  <div className="p-4 rounded-xl bg-amber/5 border border-amber/20 text-sm text-amber font-body">
+                    ⚠️ Folder Path only works when running this app on your own computer (local mode).
+                    On the live website it cannot read your computer's folders for security reasons —
+                    please use the <strong>"Select Folder"</strong> tab instead, which works everywhere.
                   </div>
                   <input
                     className="input-field"
@@ -211,10 +266,12 @@ export default function NewScreening() {
                     value={folderPath}
                     onChange={e => setFolderPath(e.target.value)}
                   />
+                  <p className="text-xs text-muted font-body">
+                    Tip: This option is mainly for local testing. For online use, the "Select Folder" tab gives the same result.
+                  </p>
                 </div>
               )}
 
-              
               {/* Google Drive */}
               {tab === 'drive' && (
                 <div className="space-y-4">
@@ -279,7 +336,10 @@ export default function NewScreening() {
                 <div className="flex justify-between items-center py-3 border-b border-border">
                   <span className="text-muted text-sm font-body">CV Source</span>
                   <span className="tag-purple font-mono text-xs">
-                    {tab === 'local' ? `${files.length} local files` : tab === 'folder' ? 'Folder Path' : tab === 'drive' ? 'Google Drive' : 'AWS S3'}
+                    {tab === 'local' ? `${files.length} local files`
+                      : tab === 'pick' ? `${pickedFiles.length} files (folder)`
+                      : tab === 'folder' ? 'Folder Path'
+                      : tab === 'drive' ? 'Google Drive' : 'AWS S3'}
                   </span>
                 </div>
               </div>
