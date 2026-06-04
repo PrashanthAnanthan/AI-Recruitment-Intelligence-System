@@ -1,5 +1,6 @@
 import asyncio
 import os
+import base64
 import tempfile
 from pathlib import Path
 from bson import ObjectId
@@ -33,16 +34,33 @@ async def process_pipeline(req: ProcessRequest):
             {"$set": {"status": "processing"}}
         )
 
-        # ── Collect CV texts ──────────────────────────────────────────────
         cv_items: list[tuple[str, str]] = []  # (text, filename)
 
         if req.cvSource.type == "local":
-            for file_id in req.cvSource.fileIds:
-                fp = UPLOAD_DIR / file_id
-                if fp.exists():
-                    text = extract_text(str(fp))
-                    if text:
-                        cv_items.append((text, fp.name))
+            # NEW: handle base64 files sent directly from Node
+            if hasattr(req.cvSource, 'files') and req.cvSource.files:
+                for file_obj in req.cvSource.files:
+                    try:
+                        file_bytes = base64.b64decode(file_obj.get('content', ''))
+                        fname = file_obj.get('filename', 'cv.pdf')
+                        suffix = Path(fname).suffix or '.pdf'
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                            tmp.write(file_bytes)
+                            tmp_path = tmp.name
+                        text = extract_text(tmp_path)
+                        os.unlink(tmp_path)
+                        if text:
+                            cv_items.append((text, fname))
+                    except Exception as e:
+                        print(f"Error processing base64 file: {e}")
+            else:
+                # Fallback: try local path (works when running locally)
+                for file_id in (req.cvSource.fileIds or []):
+                    fp = UPLOAD_DIR / file_id
+                    if fp.exists():
+                        text = extract_text(str(fp))
+                        if text:
+                            cv_items.append((text, fp.name))
 
         elif req.cvSource.type == "folder":
             folder = Path(req.cvSource.folderPath)
@@ -90,7 +108,7 @@ async def process_pipeline(req: ProcessRequest):
             )
             return
 
-        # ── Analyze each CV (parallel batches of 10) ─────────────────────
+        # Analyze each CV (parallel batches)
         candidates: list[Candidate] = []
         BATCH_SIZE = 25
 
@@ -109,14 +127,13 @@ async def process_pipeline(req: ProcessRequest):
 
             await update_progress(sid, min(batch_start + BATCH_SIZE, total), total)
 
-        # ── Post-processing ───────────────────────────────────────────────
+        # Post-processing
         candidates = detect_duplicates(candidates)
         candidates.sort(key=lambda c: c.overallScore, reverse=True)
 
-        top_score  = candidates[0].overallScore if candidates else 0
+        top_score   = candidates[0].overallScore if candidates else 0
         shortlisted = sum(1 for c in candidates if c.overallScore >= 75)
 
-        # ── Persist results ───────────────────────────────────────────────
         cand_dicts = [c.model_dump() for c in candidates]
 
         await db.screenings.update_one(
@@ -130,10 +147,10 @@ async def process_pipeline(req: ProcessRequest):
                 "progress":    {"current": total, "total": total},
             }}
         )
-        print(f"✅ Screening {sid} complete — {total} CVs, top score: {top_score}")
+        print(f"Screening {sid} complete - {total} CVs, top score: {top_score}")
 
     except Exception as e:
-        print(f"❌ Pipeline error for {sid}: {e}")
+        print(f"Pipeline error for {sid}: {e}")
         await db.screenings.update_one(
             {"_id": ObjectId(sid)},
             {"$set": {"status": "failed", "error": str(e)}}
@@ -141,6 +158,6 @@ async def process_pipeline(req: ProcessRequest):
 
 
 @router.post("/process")
-async def trigger_process(req: ProcessRequest, bg: BackgroundTasks):
-    bg.add_task(process_pipeline, req)
-    return {"message": "Processing started", "screeningId": req.screeningId}
+async def process_screening(req: ProcessRequest, background_tasks: BackgroundTasks):
+    background_tasks.add_task(process_pipeline, req)
+    return {"status": "processing started"}

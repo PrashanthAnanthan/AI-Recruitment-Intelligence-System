@@ -1,9 +1,15 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
+
+class FileObject(BaseModel):
+    filename: str
+    content: str  # base64 encoded
+    mimetype: Optional[str] = "application/pdf"
 
 class CVSource(BaseModel):
     type: str  # local | folder | drive | s3
     fileIds: Optional[List[str]] = []
+    files: Optional[List[Any]] = []  # base64 file objects from Node
     folderPath: Optional[str] = None
     link: Optional[str] = None
     bucket: Optional[str] = None

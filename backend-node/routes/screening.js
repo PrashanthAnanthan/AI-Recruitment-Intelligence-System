@@ -3,6 +3,8 @@ const asyncHandler = require('express-async-handler')
 const axios    = require('axios')
 const ExcelJS  = require('exceljs')
 const PDFKit   = require('pdfkit')
+const path     = require('path')
+const fs       = require('fs')
 const Screening = require('../models/Screening')
 
 const PYTHON = process.env.PYTHON_API_URL || 'http://localhost:8000'
@@ -28,13 +30,34 @@ router.post('/', asyncHandler(async (req, res) => {
 
   const sc = await Screening.create({ jobTitle, jobDescription, cvSource, status: 'pending' })
 
+  // If local files, read them and send as base64 to Python
+  let enrichedCvSource = { ...cvSource }
+
+  if (cvSource.type === 'local' && cvSource.fileIds?.length > 0) {
+    const uploadsDir = path.join(__dirname, '../uploads')
+    const files = cvSource.fileIds.map(fileId => {
+      const filePath = path.join(uploadsDir, fileId)
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath)
+        return {
+          filename: fileId,
+          content: content.toString('base64'),
+          mimetype: fileId.endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+      }
+      return null
+    }).filter(Boolean)
+
+    enrichedCvSource = { ...cvSource, files }
+  }
+
   // Fire-and-forget to Python engine
   axios.post(`${PYTHON}/process`, {
     screeningId:    sc._id.toString(),
     jobTitle,
     jobDescription,
-    cvSource,
-  }).catch(err => {
+    cvSource: enrichedCvSource,
+  }, { timeout: 300000 }).catch(err => {
     console.error('Python engine error:', err.message)
     Screening.findByIdAndUpdate(sc._id, { status: 'failed', error: err.message }).exec()
   })
@@ -110,12 +133,12 @@ router.get('/:id/export/pdf', asyncHandler(async (req, res) => {
   doc.moveDown()
 
   sc.candidates.forEach((c, i) => {
-    doc.fontSize(13).fillColor('#333').text(`${i + 1}. ${c.name || 'Unknown'} — ${c.overallScore}/100`)
+    doc.fontSize(13).fillColor('#333').text(`${i + 1}. ${c.name || 'Unknown'} - ${c.overallScore}/100`)
     doc.fontSize(10).fillColor('#666').text(`  ${c.experience || ''} | ${c.education || ''}`)
     if (c.matchDetails?.strengths?.length)
-      doc.fillColor('#00AA88').text(`  ✓ ${c.matchDetails.strengths.slice(0, 2).join('; ')}`)
+      doc.fillColor('#00AA88').text(`  + ${c.matchDetails.strengths.slice(0, 2).join('; ')}`)
     if (c.matchDetails?.weaknesses?.length)
-      doc.fillColor('#CC4466').text(`  ✗ ${c.matchDetails.weaknesses.slice(0, 2).join('; ')}`)
+      doc.fillColor('#CC4466').text(`  - ${c.matchDetails.weaknesses.slice(0, 2).join('; ')}`)
     doc.moveDown(0.5)
   })
 
