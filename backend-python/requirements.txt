@@ -1,8 +1,12 @@
 fastapi
-uvicorn
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings
 pymongo
 motor
-python-multipart
+python-dotenv
+httpx
 pypdf2
 pdfplumber
 python-docx
